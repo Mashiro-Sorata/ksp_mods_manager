@@ -6,10 +6,14 @@ def saveJson(path, data):
         f.write(js)
 
 def loadJson(path):
-    with open(path,'r') as f:
-        data = json.loads(f.read())
-    return data
+    try:
+        with open(path,'r') as f:
+            data = json.loads(f.read())
+        return data
+    except FileNotFoundError:
+        return dict()
 
 if __name__ == '__main__':
     data = loadJson('paths.json')
+    print(data)
 
