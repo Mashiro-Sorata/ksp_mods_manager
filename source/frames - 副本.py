@@ -3,10 +3,10 @@
 
 #若第一次运行程序，自动检测ksp安装路径，如若没有找到，则用户手动选择路径
 #第一次提示用户设定“管理文件夹”，默认为程序所在路径下的MODS文件夹
-import wx
-import os
+
+from moveFile import *
 from json_builder import *
-from folder_list import *
+from files_operation import *
 
 class MainFrame(wx.Frame):
     """
@@ -20,13 +20,16 @@ class MainFrame(wx.Frame):
         #fmdata--FolderModData
         #fidata--FolderInstalledData
         self.pdata = loadJson(self.datapath)
+        _tpath = os.path.join(os.getcwd(),'KSPMods')
+        if self.pdata['Uninstalled Path'] == _tpath and not os.path.exists(_tpath):
+            os.mkdir(_tpath)
+        self.fmdata = folder2data(self.pdata['Uninstalled Path'])
+        self.fidata = folder2data(self.pdata['Installed Path'])
         self.InitUI()
         self.InitData()
         self.Bind(wx.EVT_BUTTON, self.OnRefresh, self.btnRefresh)
 
     def InitData(self):
-        self.fmdata = folder2data(self.pdata['Uninstalled Path'])
-        self.fidata = folder2data(self.pdata['Installed Path'])
         self.mods_Ins.UpdateData(self.fidata)
         self.mods_Unins.UpdateData(self.fmdata)
 
@@ -67,6 +70,7 @@ class MainFrame(wx.Frame):
         abox.Add(uninsSizer, 0, wx.ALL|wx.CENTER, 1)
         abox.Add(btnSizer, 0, wx.ALL|wx.CENTER, 1)
         abox.Add(insSizer, 0, wx.ALL|wx.CENTER, 1)
+        
         pnl.SetSizer(abox)
 
         self.makeMenuBar()
@@ -100,13 +104,17 @@ class MainFrame(wx.Frame):
     def OnCfg(self, e):
         self.Destroy()
         data = loadJson(self.datapath)
-        frm = InitCfgFrame(None, title='Settings',size=(600,250),style=wx.MINIMIZE_BOX | wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.CLIP_CHILDREN)
+        frm = CfgFrame(None, title='Settings',size=(600,300),style=wx.MINIMIZE_BOX | wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.CLIP_CHILDREN)
         frm.InspText.SetValue(data['Installed Path'])
         frm.ModText.SetValue(data['Uninstalled Path'])
+        frm.moveopt.SetValue(data['IsMove'])
         frm.Center()
         frm.Show()
 
     def OnRefresh(self, e):
+        self.pdata = loadJson(self.datapath)
+        self.fmdata = folder2data(self.pdata['Uninstalled Path'])
+        self.fidata = folder2data(self.pdata['Installed Path'])
         self.InitData()
 
 class ModsList:
@@ -127,6 +135,7 @@ class ModsList:
         self.list.SetColumnWidth(0, w1)                                         #设置每一列的宽度
         self.list.SetColumnWidth(1, w2)
         self.list.SetColumnWidth(2, w3)
+        self.list.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
 
     def UpdateData(self, datas):
         self.list.DeleteAllItems()
@@ -137,13 +146,41 @@ class ModsList:
                 self.list.SetItem(index, 1, data[0])
                 self.list.SetItem(index, 2, data[1])
 
+    def OnContextMenu(self, event):
+        print('do')
+        if not hasattr(self, "popupStop"):
+            self.popupStop = wx.NewId()
+            self.popupPropery = wx.NewId()
+            self.Bind(wx.EVT_MENU, self.OnPopupStop, id = self.popupStop)
+            self.Bind(wx.EVT_MENU, self.OnPopupProperty, id = self.popupPropery)
 
-class InitCfgFrame(wx.Frame):
+        # 创建菜单
+        menu = wx.Menu()
+        itemStop = wx.MenuItem(menu, self.popupStop, "Stop")
+        itemProperty = wx.MenuItem(menu, self.popupPropery, 'Property')
+
+        menu.AppendItem(itemStop)
+        menu.AppendItem(itemProperty)
+        itemProperty.Enable(False)
+            
+        #如果没有选中任何项
+        if itemid == -1:
+            itemStop.Enable(False)
+        else:
+            itemStop.Enable(False)
+            itemProperty.Enable(True)
+        #到这里才弹出菜单
+        self.PopupMenu(menu)
+        #最后注意销毁前面创建的菜单
+        menu.Destroy()
+
+
+class CfgFrame(wx.Frame):
     """
     初始化设定窗口
     """
     def __init__(self, *args, **kw):
-        super(InitCfgFrame, self).__init__(*args, **kw)
+        super(CfgFrame, self).__init__(*args, **kw)
         self.datapath = os.getcwd() + r'\data\mainData.json'
 
         pnl = wx.Panel(self)
@@ -166,6 +203,11 @@ class InitCfgFrame(wx.Frame):
         modCtbox.Add(self.ModText, 0, wx.ALL | wx.CENTER, 5)
         modCtbox.Add(self.ModBtn, 0, wx.ALL | wx.CENTER, 5)
         modCtSizer.Add(modCtbox, 0, wx.ALL | wx.CENTER, 10)
+        
+        self.moveopt = wx.CheckBox(pnl, -1, label='更改Uninstalled Mods路径时转移目录下的所有文件')
+        moptSizer = wx.BoxSizer(wx.VERTICAL)
+        moptSizer.Add(self.moveopt, 0, wx.ALL | wx.CENTER, 5)
+        vbox.Add(moptSizer, 0, wx.ALL|wx.CENTER, 1)
 
         vbox.Add(insCtSizer, 0, wx.ALL|wx.CENTER, 5)
         vbox.Add(modCtSizer, 0, wx.ALL|wx.CENTER, 5)
@@ -206,21 +248,42 @@ class InitCfgFrame(wx.Frame):
 
     def Cancel(self, e):
         self.Destroy()
-
+        if os.path.exists(self.datapath):
+            frm = MainFrame(None, title='KSP-Mods-Manager', size=(1000,500),style=wx.MINIMIZE_BOX | wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.CLIP_CHILDREN)
+            frm.Center()
+            frm.Show()
+    
     def Save(self, e):
-        #init_flag = not os.path.isfile(self.datapath)
         data = {}
         _path = self.InspText.GetValue()
         if _path:
-            data['Installed Path'] = self.InspText.GetValue()
-            data['Uninstalled Path'] = self.ModText.GetValue()
-            saveJson(self.datapath, data)
+            if self.isCfgchange():
+                data['Installed Path'] = self.InspText.GetValue()
+                data['Uninstalled Path'] = self.ModText.GetValue()
+                data['IsMove'] = self.moveopt.GetValue()
+                if self.moveopt.GetValue():
+                    self.modPathChange(data['Uninstalled Path'])
+                saveJson(self.datapath, data)
             self.Destroy()
-            #if init_flag:
             frm = MainFrame(None, title='KSP-Mods-Manager', size=(1000,500),style=wx.MINIMIZE_BOX | wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.CLIP_CHILDREN)
             frm.Center()
             frm.Show()
         else:
             wx.MessageBox("Installed Path is required!", "Warning" ,wx.OK | wx.ICON_EXCLAMATION)
-        
+
+    def isCfgchange(self):
+        olddata = loadJson(self.datapath)
+        if self.InspText.GetValue() != olddata.get('Installed Path'):
+            return True
+        if self.ModText.GetValue() != olddata.get('Uninstalled Path'):
+            return True
+        if self.moveopt.GetValue() != olddata.get('IsMove'):
+            return True
+        return False
+
+    def modPathChange(self, newpath):
+        self.pdata = loadJson(self.datapath)
+        if self.pdata:
+            if newpath != self.pdata['Uninstalled Path']:
+                threadMove(self.pdata['Uninstalled Path'], newpath)
 

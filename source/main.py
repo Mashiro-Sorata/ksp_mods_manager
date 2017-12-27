@@ -1,8 +1,6 @@
 # main.py
 # -*- coding: utf-8 -*-
 
-import wx
-import os
 from auto_search_ksp_path import *
 from frames import *
 
@@ -17,7 +15,7 @@ from frames import *
 if __name__ == '__main__':
     app = wx.App()
 
-    if not os.path.isfile(r'.\data\mainData.json'):
+    if not os.path.isfile(os.path.join(os.getcwd(),r'data\mainData.json')):
         #初始化设定(Default)
         inspath = os.path.join(autoSearchPath(),'GameData')
         frm1 = CfgFrame(None, title='Settings',size=(600,300),style=wx.MINIMIZE_BOX | wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.CLIP_CHILDREN)

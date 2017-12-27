@@ -15,7 +15,7 @@ class MainFrame(wx.Frame):
 
     def __init__(self, *args, **kw):
         super(MainFrame, self).__init__(*args, **kw)
-        self.datapath = os.getcwd() + r'\data\mainData.json'
+        self.datapath = os.path.join(os.getcwd(), r'data\mainData.json')
         #pdata--PathData
         #fmdata--FolderModData
         #fidata--FolderInstalledData
@@ -23,21 +23,26 @@ class MainFrame(wx.Frame):
         _tpath = os.path.join(os.getcwd(),'KSPMods')
         if self.pdata['Uninstalled Path'] == _tpath and not os.path.exists(_tpath):
             os.mkdir(_tpath)
-        self.fmdata = folder2data(self.pdata['Uninstalled Path'])
-        self.fidata = folder2data(self.pdata['Installed Path'])
         self.InitUI()
         self.InitData()
         self.Bind(wx.EVT_BUTTON, self.OnRefresh, self.btnRefresh)
 
+
+    
     def InitData(self):
-        self.mods_Ins.UpdateData(self.fidata)
-        self.mods_Unins.UpdateData(self.fmdata)
+        try:
+            self.mods_Ins.UpdateDataInFrame(self.mods_Ins.UpdateDataInFile(False))
+            self.mods_Unins.UpdateDataInFrame(self.mods_Unins.UpdateDataInFile(True))
+        except FileNotFoundError:
+            os.remove(self.datapath)
+            self.Destroy()
+            wx.Exit()
 
     def InitUI(self):
         pnl = wx.Panel(self)
         abox = wx.BoxSizer(wx.HORIZONTAL)
         Bwidth = 60
-        self.mods_Ins = ModsList(pnl)
+        self.mods_Ins = ModsList(pnl, _import=False)
         self.mods_Unins = ModsList(pnl,w1=140,w2=150,w3=140)
         
         self.btnAdd = wx.Button(pnl,label = '>>',size=(Bwidth,30))
@@ -80,7 +85,7 @@ class MainFrame(wx.Frame):
 
     def makeMenuBar(self):
         fileMenu = wx.Menu()
-        openItem = fileMenu.Append(-1, 'Import', 'Import Mods to Uninstalled Path')
+        importItem = fileMenu.Append(-1, 'Import', 'Import Mods to Uninstalled Path')
         cfgItem = fileMenu.Append(-1, 'Setting', 'Set your Mods\' path')
         fileMenu.AppendSeparator()
 
@@ -96,6 +101,7 @@ class MainFrame(wx.Frame):
 
         self.Bind(wx.EVT_MENU, self.OnCfg, cfgItem)
         self.Bind(wx.EVT_MENU, self.OnExit, exitItem)
+        self.Bind(wx.EVT_MENU, self.OnImport, importItem)
 
     def OnExit(self, e):
         self.Destroy()
@@ -111,18 +117,26 @@ class MainFrame(wx.Frame):
         frm.Center()
         frm.Show()
 
+    def OnImport(self, e):
+        print('import')
+        self.mods_Unins.ImportMod()
+
     def OnRefresh(self, e):
-        self.pdata = loadJson(self.datapath)
-        self.fmdata = folder2data(self.pdata['Uninstalled Path'])
-        self.fidata = folder2data(self.pdata['Installed Path'])
         self.InitData()
 
 class ModsList:
-    def __init__(self, parent, datas=None, w1=180, w2=150, w3=100):
+    def __init__(self, parent, datas=None, w1=180, w2=150, w3=100, _import=True, _tags=True, _folder=True, _remove=True):
+        self.parent = parent
         self.list = wx.ListCtrl(parent, -1, style = wx.LC_REPORT, size=(430, 500))
+        self.datapath = os.path.join(os.getcwd(), r'data\mainData.json')
+        
         self.list.InsertColumn(0, 'Mods')
         self.list.InsertColumn(1, 'Path')
         self.list.InsertColumn(2, 'Tags')
+        self._import = _import
+        self._tags = _tags
+        self._folder = _folder
+        self._remove = _remove
 
         if datas:
             items = datas.items()
@@ -135,8 +149,9 @@ class ModsList:
         self.list.SetColumnWidth(0, w1)                                         #设置每一列的宽度
         self.list.SetColumnWidth(1, w2)
         self.list.SetColumnWidth(2, w3)
+        self.list.Bind(wx.EVT_CONTEXT_MENU, self.OnRclickMenu)
 
-    def UpdateData(self, datas):
+    def UpdateDataInFrame(self, datas):
         self.list.DeleteAllItems()
         if datas:
             items = datas.items()
@@ -145,6 +160,96 @@ class ModsList:
                 self.list.SetItem(index, 1, data[0])
                 self.list.SetItem(index, 2, data[1])
 
+    def UpdateDataInFile(self, uninstalled=True):
+        pdata = loadJson(self.datapath)
+        if uninstalled:
+            _rootpath = pdata['Uninstalled Path']
+        else:
+            _rootpath = pdata['Installed Path']
+        _filepath = os.path.join(_rootpath, 'modData.json')
+        dataNew = folder2data(_rootpath)
+        if os.path.exists(_filepath):
+            #比较文件内数据与现在的数据，导入更新项，删除不存在的mods
+            dataOld = loadJson(_filepath)
+            for each in dataNew.keys():
+                if dataOld.get(each):
+                    dataNew[each][1] = dataOld[each][1]
+        saveJson(_filepath, dataNew)
+        return dataNew
+
+    def OnRclickMenu(self, event):
+        menu = wx.Menu()
+        if self._import:
+            self.importItem = menu.Append(-1, '导入Mods', '导入Mods')
+            self.list.Bind(wx.EVT_MENU, self.OnImport, self.importItem)
+        if self._tags:
+            self.tagsItem = menu.Append(-1, '编辑Tags', '自定义修改选中项的Tags(可批量修改)')
+            self.list.Bind(wx.EVT_MENU, self.OnTags, self.tagsItem)
+        if self._folder:
+            self.folderItem = menu.Append(-1, '打开文件夹', '打开选中项所在的文件夹')
+            self.list.Bind(wx.EVT_MENU, self.OnFolder, self.folderItem)
+        if self._remove:
+            self.removeItem = menu.Append(-1, '删除Mods', '删除选中的Mods文件')
+            self.list.Bind(wx.EVT_MENU, self.OnRemove, self.removeItem)
+
+        self.idlist = []
+        itemid = self.list.GetFirstSelected()
+        if itemid == -1:
+            if hasattr(self, 'tagsItem'):
+                self.tagsItem.Enable(False)
+            if hasattr(self, 'folderItem'):
+                self.folderItem.Enable(False)
+            if hasattr(self, 'removeItem'):
+                self.removeItem.Enable(False)
+
+        while itemid != -1:
+            self.idlist.append(itemid)
+            itemid = self.list.GetNextSelected(itemid)
+            
+        self.list.PopupMenu(menu)
+        menu.Destroy()
+
+    def OnImport(self, e):
+        self.ImportMod()
+
+    def OnTags(self, e):
+        print('Tags')
+        pass
+
+    def OnFolder(self, e):
+        print('Folder')
+        pass
+
+    def OnRemove(self, e):
+        print('Remove')
+        i = 0
+        for each in self.idlist:
+            self.list.DeleteItem(each-i)
+            i += 1
+
+    def ImportMod(self):
+        data = loadJson(self.datapath)
+        if data.get('OldImportPath'):
+            dlg = wx.DirDialog(self.parent, r'选择目标文件夹', data['OldImportPath'], style=wx.DD_DEFAULT_STYLE)
+        else:
+            dlg = wx.DirDialog(self.parent, r'选择目标文件夹', os.getcwd(), style=wx.DD_DEFAULT_STYLE)
+        if dlg.ShowModal() == wx.ID_OK:
+            #将此文件夹转移到mods管理目录下
+            tgtpath = dlg.GetPath()
+            if IsFileinFolder(tgtpath):
+                SFthreadMove(tgtpath, data['Uninstalled Path'])
+                data['OldImportPath'] = os.path.split(tgtpath)[0]
+                saveJson(self.datapath, data)
+            else:
+                msgdlg = wx.MessageDialog(None, u"Mod文件夹不能为空文件夹！", u"错误", style = wx.OK | wx.ICON_HAND)
+                msgdlg.ShowModal()
+                msgdlg.Destroy()
+        dlg.Destroy()
+        self.UpdateDataInFrame(self.UpdateDataInFile(True))
+        
+            
+        
+
 
 class CfgFrame(wx.Frame):
     """
@@ -152,7 +257,7 @@ class CfgFrame(wx.Frame):
     """
     def __init__(self, *args, **kw):
         super(CfgFrame, self).__init__(*args, **kw)
-        self.datapath = os.getcwd() + r'\data\mainData.json'
+        self.datapath = os.path.join(os.getcwd(), r'data\mainData.json')
 
         pnl = wx.Panel(self)
         vbox = wx.BoxSizer(wx.VERTICAL)
@@ -257,4 +362,6 @@ class CfgFrame(wx.Frame):
         if self.pdata:
             if newpath != self.pdata['Uninstalled Path']:
                 threadMove(self.pdata['Uninstalled Path'], newpath)
+
+        
 

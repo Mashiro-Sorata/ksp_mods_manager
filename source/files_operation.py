@@ -20,13 +20,18 @@ def enumFolder(dirpath, files=True):
             flist.append(each)
     return flist
 
+def IsFileinFolder(path):
+    for (root, dirs, file) in os.walk(path):
+        if file:
+            return True
+    return False
 
 def folder2data(path):
     data = {}
-    tag = 'undefined'
+    tag = 'Undefined'
     dlist = enumFolder(path, False)
     for each in dlist:
-        data[each] = (os.path.join(path,each), tag)
+        data[each] = [os.path.join(path,each), tag]
     return data
 
 
@@ -49,7 +54,12 @@ def listFilesBySorD(oldpath, newpath, same=True):
     
 
 #转移某个文件夹下所有文件(包括文件夹)
-def moveFinF(oldpath, newpath, oldfilelist=None):
+def moveFinF(oldpath, newpath, oldfilelist=None, samefiles=None, override=False):
+    if samefile and override:
+        rmtreeByNamelist(newpath, samefiles)
+    elif not samefile and override:
+        raise Exception("Wrong args!'override' can not be True when 'samefiles' is empty!")
+        
     if oldfilelist:
         flist = oldfilelist
     else:
@@ -76,8 +86,8 @@ def threadMove(oldpath, newpath):
     if samefiles:
         dlg = wx.MessageDialog(None, u"检测到有相同文件，是否覆盖？", u"警告", style = wx.YES_NO | wx.YES_DEFAULT | wx.ICON_EXCLAMATION)
         if dlg.ShowModal() == wx.ID_YES:
-            rmtreeByNamelist(newpath, samefiles)
-            p = multiprocessing.Process(target=moveFinF, args=(oldpath, newpath))
+            #rmtreeByNamelist(newpath, samefiles)
+            p = multiprocessing.Process(target=moveFinF, args=(oldpath, newpath, None, samefiles, True))
             p.start()
             moveDialog(oldpath)
         else:
@@ -121,10 +131,40 @@ def getDirSize(dirpath, nlist=None):
         for each in nlist:
             size += getDirSize(os.path.join(dirpath, each))
     return size
-        
+
+def moveFtoF(oldpath, newpath, override=False):
+    if override:
+        modname = os.path.split(oldpath)[1]
+        shutil.rmtree(os.path.join(newpath, modname))
+        shutil.move(oldpath, newpath)
+    else:
+        shutil.move(oldpath, newpath)
+
+#single Folder thread move
+def SFthreadMove(oldpath, newpath):
+    newflist = enumFolder(newpath)
+    newalist = os.listdir(newpath)
+    modname = os.path.split(oldpath)[1]
+    if modname in newflist:
+        #重名提示是否覆盖
+        dlg = wx.MessageDialog(None, u"检测到有相同文件，是否覆盖？", u"警告", style = wx.YES_NO | wx.YES_DEFAULT | wx.ICON_EXCLAMATION)
+        if dlg.ShowModal() == wx.ID_YES:
+            p = multiprocessing.Process(target=moveFtoF, args=(oldpath, newpath, True))
+            p.start()
+            moveDialog(oldpath)
+    elif modname in newalist:
+        p = multiprocessing.Process(target=moveFtoF, args=(oldpath, newpath, True))
+        p.start()
+        moveDialog(oldpath)
+    else:
+        p = multiprocessing.Process(target=moveFtoF, args=(oldpath, newpath))
+        p.start()
+        moveDialog(oldpath)
+
+            
 
 if __name__ == '__main__':
-    path = r'E:\Work\python-learn\project\ksp_mods_manager\prj'
-    print(os.path.isfile(os.path.join(path, 'frames - 副本.py')))
-    print(enumFolder(path,False))
+    m1 = r'E:\Work\python-learn\project\ksp_mods_manager\prj\KSPMods\mod0'
+    m2 = r'E:\Work\python-learn\project\ksp_mods_manager\prj\test'
+    print(IsFileinFolder(m2))
     
