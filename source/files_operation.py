@@ -36,76 +36,81 @@ def folder2data(path):
 
 
 #通过same参数返回两个路径下相同或者不同的文件名列表
-def listFilesBySorD(oldpath, newpath, same=True):
-    flist = []
-    #t2
-    oldlist = enumFolder(oldpath)
+def listFilesBySorD(oldpath, newpath, filenamelist=None):
+    samelist = []
+    difflist = []
     newlist = os.listdir(newpath)
-    if same:
+    if filenamelist == None:
+        oldlist = enumFolder(oldpath)
         for each in oldlist:
             if each in newlist:
-                flist.append(each)
+                samelist.append(each)
+            else:
+                difflist.append(each)
     else:
-        for each in oldlist:
-            if each not in newlist:
-                flist.append(each)
-    return flist
+        for each in filenamelist:
+            if each in newlist:
+                samelist.append(each)
+            else:
+                difflist.append(each)
+    return (samelist, difflist)
 
     
 
 #转移某个文件夹下所有文件(包括文件夹)
-def moveFinF(oldpath, newpath, oldfilelist=None, samefiles=None, override=False):
+def moveFinF(oldpath, newpath, oldfilelist=None, samefile=None, override=False):
+    print('move')
     if samefile and override:
-        rmtreeByNamelist(newpath, samefiles)
+        rmtreeByNamelist(newpath, samefile)
     elif not samefile and override:
         raise Exception("Wrong args!'override' can not be True when 'samefiles' is empty!")
         
-    if oldfilelist:
+    if oldfilelist != None:
         flist = oldfilelist
     else:
-        #t1
         flist = enumFolder(oldpath)
     for each in flist:
         try:
-            print(each)
             shutil.move(os.path.join(oldpath,each),newpath)
         except shutil.Error:
-            continue
+            pass
 
 #删除给出路径下在nlist列表中的文件
 def rmtreeByNamelist(rootpath, nlist):
+    print('rm')
     for each in nlist:
         eachpath = os.path.join(rootpath, each)
         if os.path.isfile(eachpath):
             os.remove(eachpath)
         else:
             shutil.rmtree(os.path.join(rootpath, each))
+        
 
-def threadMove(oldpath, newpath):
-    samefiles = listFilesBySorD(oldpath, newpath)
+#转移oldpath下所有非空文件(可通过filenamelist选择)
+def threadMove(oldpath, newpath, filenamelist=None):
+    (samefiles, difffiles) = listFilesBySorD(oldpath, newpath, filenamelist)
     if samefiles:
         dlg = wx.MessageDialog(None, u"检测到有相同文件，是否覆盖？", u"警告", style = wx.YES_NO | wx.YES_DEFAULT | wx.ICON_EXCLAMATION)
         if dlg.ShowModal() == wx.ID_YES:
-            #rmtreeByNamelist(newpath, samefiles)
-            p = multiprocessing.Process(target=moveFinF, args=(oldpath, newpath, None, samefiles, True))
+            p = multiprocessing.Process(target=moveFinF, args=(oldpath, newpath, filenamelist, samefiles, True))
             p.start()
-            moveDialog(oldpath)
+            moveDialog(oldpath, dlist=filenamelist)
         else:
-            difffiles = listFilesBySorD(oldpath, newpath, same=False)
             p = multiprocessing.Process(target=moveFinF, args=(oldpath, newpath, difffiles))
             p.start()
             moveDialog(oldpath, dlist=difffiles)
     else:
-        p = multiprocessing.Process(target=moveFinF, args=(oldpath, newpath))
+        p = multiprocessing.Process(target=moveFinF, args=(oldpath, newpath, filenamelist))
         p.start()
-        moveDialog(oldpath)
+        moveDialog(oldpath, dlist=filenamelist)
+    return p
 
 def moveDialog(oldpath, dlist=None):
     allsize = getDirSize(oldpath, dlist)
     #文件大于5M则显示dialog进度条
     if allsize > 5242880 :
         msg = 'Loading...\n文件转移中，请稍等...'
-        dialog = wx.ProgressDialog("文件转移", msg,100,style=wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME)
+        dialog = wx.ProgressDialog("文件转移", msg, 100, style=wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME)
         alive = True
         percent = 0
         while alive and percent < 100:
@@ -173,14 +178,14 @@ def rmDialog(pathlist):
     #文件大于50M则显示dialog进度条
     if allsize > 52428800 :
         msg = 'Loading...\n文件删除中，请稍等...'
-        dialog = wx.ProgressDialog("文件转移", msg,100,style=wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME)
+        dialog = wx.ProgressDialog("文件删除", msg,100,style=wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME)
         alive = True
         percent = 0
         while alive and percent < 100:
             leftsize = getDirSizeFromList(pathlist)
             percent = 100 - ((allsize-leftsize)/allsize)*100
             if percent == 100:
-                msg = 'Mods转移完成！'
+                msg = 'Mods删除完成！'
             #wx.Sleep(0.3)
             alive = dialog.Update(percent, newmsg=msg)
         dialog.Destroy()
@@ -197,7 +202,9 @@ def threadRMtree(pathlist):
             
 
 if __name__ == '__main__':
-    m1 = r'E:\Work\python-learn\project\ksp_mods_manager\prj\KSPMods\modz'
+    #app = wx.App()
+    #app.MainLoop()
+    m1 = r'E:\Work\python-learn\project\ksp_mods_manager\prj\KSPMods'
     m2 = r'E:\Work\python-learn\project\ksp_mods_manager\prj\test'
-    print(getDirSize(m1))
+    moveFinF(m1,m2,['m2','mod1'])
     

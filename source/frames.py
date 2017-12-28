@@ -26,6 +26,9 @@ class MainFrame(wx.Frame):
         self.InitUI()
         self.InitData()
         self.Bind(wx.EVT_BUTTON, self.OnRefresh, self.btnRefresh)
+        self.Bind(wx.EVT_BUTTON, self.OnControl_Rmove, self.btnAdd)
+        self.Bind(wx.EVT_BUTTON, self.OnControl_Lmove, self.btnRmv)
+        self.Bind(wx.EVT_BUTTON, self.OnRunKSP, self.btnRun)
 
 
     
@@ -97,6 +100,29 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnCfg, cfgItem)
         self.Bind(wx.EVT_MENU, self.OnExit, exitItem)
         self.Bind(wx.EVT_MENU, self.OnImport, importItem)
+
+    def OnControl_Rmove(self, e):
+        print('>>')
+        idlist = self.mods_Unins.getIdList()
+        if idlist:
+            datas = loadJson(self.datapath)
+            insdata = loadJson(os.path.join(datas['Installed Path'], r'modData.json'))
+            namelist = []
+            for each in idlist:
+                modname = self.mods_Unins.list.GetItemText(each, 0)
+                insdata[modname] = [None, self.mods_Unins.list.GetItemText(each, 2)]    #path刷新时会自动重新生成
+                namelist.append(modname)
+            p = threadMove(datas['Uninstalled Path'], datas['Installed Path'], namelist)
+            saveJson(os.path.join(datas['Installed Path'], r'modData.json'), insdata)
+            
+            self.InitData()
+        
+
+    def OnControl_Lmove(self, e):
+        pass
+
+    def OnRunKSP(self, e):
+        pass
 
     def OnExit(self, e):
         self.Destroy()
@@ -247,24 +273,28 @@ class ModsList:
             self.UpdateDataInFrame(self.UpdateDataInFile(), self.SBT)
         except FileNotFoundError:
             os.remove(self.datapath)
-            self.Destroy()
             wx.Exit()
 
+    def getIdList(self):
+        idlist = []
+        itemid = self.list.GetFirstSelected()
+        while itemid != -1:
+            idlist.append(itemid)
+            itemid = self.list.GetNextSelected(itemid)
+        return idlist
+        
+    
     def OnRclickMenu(self, event):
         self.tagsItem.Enable(True)
         self.folderItem.Enable(True)
         self.removeItem.Enable(True)    
         
-        self.idlist = []
         itemid = self.list.GetFirstSelected()
         if itemid == -1:
             self.tagsItem.Enable(False)
             self.folderItem.Enable(False)
             self.removeItem.Enable(False)
-
-        while itemid != -1:
-            self.idlist.append(itemid)
-            itemid = self.list.GetNextSelected(itemid)
+        self.idlist = self.getIdList()
             
         self.list.PopupMenu(self.menu)
 
