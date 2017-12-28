@@ -30,19 +30,14 @@ class MainFrame(wx.Frame):
 
     
     def InitData(self):
-        try:
-            self.mods_Ins.UpdateDataInFrame(self.mods_Ins.UpdateDataInFile(False))
-            self.mods_Unins.UpdateDataInFrame(self.mods_Unins.UpdateDataInFile(True))
-        except FileNotFoundError:
-            os.remove(self.datapath)
-            self.Destroy()
-            wx.Exit()
+        self.mods_Ins.Refresh()
+        self.mods_Unins.Refresh()
 
     def InitUI(self):
         pnl = wx.Panel(self)
         abox = wx.BoxSizer(wx.HORIZONTAL)
         Bwidth = 60
-        self.mods_Ins = ModsList(pnl, _import=False)
+        self.mods_Ins = ModsList(pnl, UNINS=False)
         self.mods_Unins = ModsList(pnl,w1=140,w2=150,w3=140)
         
         self.btnAdd = wx.Button(pnl,label = '>>',size=(Bwidth,30))
@@ -118,51 +113,116 @@ class MainFrame(wx.Frame):
         frm.Show()
 
     def OnImport(self, e):
-        print('import')
         self.mods_Unins.ImportMod()
 
     def OnRefresh(self, e):
         self.InitData()
 
 class ModsList:
-    def __init__(self, parent, datas=None, w1=180, w2=150, w3=100, _import=True, _tags=True, _folder=True, _remove=True):
+    def __init__(self, parent, datas=None, w1=180, w2=150, w3=100, UNINS=True):
         self.parent = parent
         self.list = wx.ListCtrl(parent, -1, style = wx.LC_REPORT, size=(430, 500))
         self.datapath = os.path.join(os.getcwd(), r'data\mainData.json')
+        self.UNINS = UNINS
+        data = loadJson(self.datapath)
+        if self.UNINS:
+            try:
+                self.SBT = data['SortByTags-UNINS']
+            except KeyError:
+                self.SBT = False
+                data['SortByTags-UNINS'] = False
+                saveJson(self.datapath, data)
+        else:
+            try:
+                self.SBT = data['SortByTags-INS']
+            except KeyError:
+                self.SBT = False
+                data['SortByTags-INS'] = False
+                saveJson(self.datapath, data)
         
         self.list.InsertColumn(0, 'Mods')
         self.list.InsertColumn(1, 'Path')
         self.list.InsertColumn(2, 'Tags')
-        self._import = _import
-        self._tags = _tags
-        self._folder = _folder
-        self._remove = _remove
 
-        if datas:
-            items = datas.items()
-            for key, data in items:
-                index = self.list.InsertItem(self.list.GetItemCount(), data[0])
-                self.list.SetItem(index, 1, key)
-                self.list.SetItem(index, 2, data[1])
-
-        
         self.list.SetColumnWidth(0, w1)                                         #设置每一列的宽度
         self.list.SetColumnWidth(1, w2)
         self.list.SetColumnWidth(2, w3)
         self.list.Bind(wx.EVT_CONTEXT_MENU, self.OnRclickMenu)
+        
+        #右键菜单栏
+        self.menu = wx.Menu()
+        if self.UNINS:
+            self.importItem = self.menu.Append(-1, '导入Mods', '导入Mods')
+            self.list.Bind(wx.EVT_MENU, self.OnImport, self.importItem)
+            self.tagsItem = self.menu.Append(-1, '编辑Tags', '自定义修改选中项的Tags(可批量修改)')
+            self.list.Bind(wx.EVT_MENU, self.OnTags, self.tagsItem)
+            self.folderItem = self.menu.Append(-1, '打开文件夹', '打开选中项所在的文件夹')
+            self.list.Bind(wx.EVT_MENU, self.OnFolder, self.folderItem)
+            self.removeItem = self.menu.Append(-1, '删除Mods', '删除选中的Mods文件')
+            self.list.Bind(wx.EVT_MENU, self.OnRemove, self.removeItem)
+            self.sbtItem = self.menu.Append(-1, '按Tags排序', '将列表按照Tags重新排序')
+            self.list.Bind(wx.EVT_MENU, self.OnSBT, self.sbtItem)
+            self.sbmItem = self.menu.Append(-1, '按Mods排序', '将列表按照Mods重新排序')
+            self.list.Bind(wx.EVT_MENU, self.OnSBM, self.sbmItem)
+            
+        else:
+            self.tagsItem = self.menu.Append(-1, '编辑Tags', '自定义修改选中项的Tags(可批量修改)')
+            self.list.Bind(wx.EVT_MENU, self.OnTags, self.tagsItem)
+            self.folderItem = self.menu.Append(-1, '打开文件夹', '打开选中项所在的文件夹')
+            self.list.Bind(wx.EVT_MENU, self.OnFolder, self.folderItem)
+            self.removeItem = self.menu.Append(-1, '删除Mods', '删除选中的Mods文件')
+            self.list.Bind(wx.EVT_MENU, self.OnRemove, self.removeItem)
+            self.sbtItem = self.menu.Append(-1, '按Tags排序', '将列表按照Tags重新排序')
+            self.list.Bind(wx.EVT_MENU, self.OnSBT, self.sbtItem)
+            self.sbmItem = self.menu.Append(-1, '按Mods排序', '将列表按照Mods重新排序')
+            self.list.Bind(wx.EVT_MENU, self.OnSBM, self.sbmItem)
 
-    def UpdateDataInFrame(self, datas):
+    def OnSBT(self, e):
+        datas = loadJson(self.datapath) 
+        if self.UNINS:
+            _SBT = datas['SortByTags-UNINS']
+            if _SBT == True:
+                return None
+            datas['SortByTags-UNINS'] = True
+        else:
+            _SBT = datas['SortByTags-INS']
+            if _SBT == True:
+                return None
+            datas['SortByTags-INS'] = True
+        saveJson(self.datapath, datas)
+        self.Refresh()
+
+    def OnSBM(self, e):
+        datas = loadJson(self.datapath)
+        if self.UNINS:
+            _SBT = datas['SortByTags-UNINS']
+            if _SBT == False:
+                return None
+            datas['SortByTags-UNINS'] = False
+        else:
+            _SBT = datas['SortByTags-INS']
+            if _SBT == False:
+                return None
+            datas['SortByTags-INS'] = False
+        saveJson(self.datapath, datas)
+        self.Refresh()
+
+    def UpdateDataInFrame(self, datas, SortByTags=False):
         self.list.DeleteAllItems()
         if datas:
-            items = datas.items()
+            if SortByTags:
+                items = sorted(datas.items(), key = lambda item:item[1][1])
+            else:
+                items = sorted(datas.items(), key = lambda item:item[0])
+            
             for key, data in items:
                 index = self.list.InsertItem(self.list.GetItemCount(), key)
                 self.list.SetItem(index, 1, data[0])
                 self.list.SetItem(index, 2, data[1])
 
-    def UpdateDataInFile(self, uninstalled=True):
+    def UpdateDataInFile(self):
         pdata = loadJson(self.datapath)
-        if uninstalled:
+        if self.UNINS:
             _rootpath = pdata['Uninstalled Path']
         else:
             _rootpath = pdata['Installed Path']
@@ -177,55 +237,83 @@ class ModsList:
         saveJson(_filepath, dataNew)
         return dataNew
 
-    def OnRclickMenu(self, event):
-        menu = wx.Menu()
-        if self._import:
-            self.importItem = menu.Append(-1, '导入Mods', '导入Mods')
-            self.list.Bind(wx.EVT_MENU, self.OnImport, self.importItem)
-        if self._tags:
-            self.tagsItem = menu.Append(-1, '编辑Tags', '自定义修改选中项的Tags(可批量修改)')
-            self.list.Bind(wx.EVT_MENU, self.OnTags, self.tagsItem)
-        if self._folder:
-            self.folderItem = menu.Append(-1, '打开文件夹', '打开选中项所在的文件夹')
-            self.list.Bind(wx.EVT_MENU, self.OnFolder, self.folderItem)
-        if self._remove:
-            self.removeItem = menu.Append(-1, '删除Mods', '删除选中的Mods文件')
-            self.list.Bind(wx.EVT_MENU, self.OnRemove, self.removeItem)
+    def Refresh(self):
+        datas = loadJson(self.datapath)
+        if self.UNINS:
+            self.SBT = datas['SortByTags-UNINS']
+        else:
+            self.SBT = datas['SortByTags-INS']
+        try:
+            self.UpdateDataInFrame(self.UpdateDataInFile(), self.SBT)
+        except FileNotFoundError:
+            os.remove(self.datapath)
+            self.Destroy()
+            wx.Exit()
 
+    def OnRclickMenu(self, event):
+        self.tagsItem.Enable(True)
+        self.folderItem.Enable(True)
+        self.removeItem.Enable(True)    
+        
         self.idlist = []
         itemid = self.list.GetFirstSelected()
         if itemid == -1:
-            if hasattr(self, 'tagsItem'):
-                self.tagsItem.Enable(False)
-            if hasattr(self, 'folderItem'):
-                self.folderItem.Enable(False)
-            if hasattr(self, 'removeItem'):
-                self.removeItem.Enable(False)
+            self.tagsItem.Enable(False)
+            self.folderItem.Enable(False)
+            self.removeItem.Enable(False)
 
         while itemid != -1:
             self.idlist.append(itemid)
             itemid = self.list.GetNextSelected(itemid)
             
-        self.list.PopupMenu(menu)
-        menu.Destroy()
+        self.list.PopupMenu(self.menu)
 
     def OnImport(self, e):
         self.ImportMod()
 
+    def UpdateTagsInFile(self, keylist, tags):
+        pdata = loadJson(self.datapath)
+        if self.UNINS:
+            _rootpath = pdata['Uninstalled Path']
+        else:
+            _rootpath = pdata['Installed Path']
+        _filepath = os.path.join(_rootpath, 'modData.json')
+        if not os.path.exists(_filepath):
+            self.Refresh()
+        data = loadJson(_filepath)
+        for each in keylist:
+            if data.get(each):
+                data[each][1] = tags
+        saveJson(_filepath, data)
+    
     def OnTags(self, e):
-        print('Tags')
-        pass
+        dlg = wx.TextEntryDialog(None, '输入新的Tags', 'Tags Entry')
+        if dlg.ShowModal() == wx.ID_OK:
+            keylist = []
+            for each in self.idlist:
+                keylist.append(self.list.GetItemText(each, 0))
+            self.UpdateTagsInFile(keylist, dlg.GetValue())
+            self.Refresh()
 
     def OnFolder(self, e):
-        print('Folder')
-        pass
+        itemid = self.list.GetFirstSelected()
+        path = self.list.GetItemText(itemid, 1)
+        try:
+            os.startfile(path)
+        except FileNotFoundError:
+            self.Refresh()
 
     def OnRemove(self, e):
-        print('Remove')
-        i = 0
-        for each in self.idlist:
-            self.list.DeleteItem(each-i)
-            i += 1
+        dlg = wx.MessageDialog(None, u"是否删除所有选中的Mods？", u"警告", style = wx.YES_NO | wx.NO_DEFAULT | wx.ICON_EXCLAMATION)
+        if dlg.ShowModal() == wx.ID_YES:
+            pathlist = []
+            for each in self.idlist:
+                pathlist.append(self.list.GetItemText(each, 1))
+            p = threadRMtree(pathlist)
+            while p.is_alive():
+                pass
+            self.Refresh()
+            
 
     def ImportMod(self):
         data = loadJson(self.datapath)
@@ -245,9 +333,8 @@ class ModsList:
                 msgdlg.ShowModal()
                 msgdlg.Destroy()
         dlg.Destroy()
-        self.UpdateDataInFrame(self.UpdateDataInFile(True))
+        self.Refresh()
         
-            
         
 
 

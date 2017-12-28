@@ -104,7 +104,7 @@ def moveDialog(oldpath, dlist=None):
     allsize = getDirSize(oldpath, dlist)
     #文件大于5M则显示dialog进度条
     if allsize > 5242880 :
-        msg = 'Loading...\n文件转移中...'
+        msg = 'Loading...\n文件转移中，请稍等...'
         dialog = wx.ProgressDialog("文件转移", msg,100,style=wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME)
         alive = True
         percent = 0
@@ -117,7 +117,7 @@ def moveDialog(oldpath, dlist=None):
             alive = dialog.Update(percent, newmsg=msg)
         dialog.Destroy()
 
-#获得路径下列表中的所有文件目录的大小
+#获得路径下列表中的所有(或指定)文件目录的大小
 def getDirSize(dirpath, nlist=None):
     size = 0
     if not nlist:
@@ -132,6 +132,7 @@ def getDirSize(dirpath, nlist=None):
             size += getDirSize(os.path.join(dirpath, each))
     return size
 
+#转移单个文件夹到新的目录下
 def moveFtoF(oldpath, newpath, override=False):
     if override:
         modname = os.path.split(oldpath)[1]
@@ -161,10 +162,42 @@ def SFthreadMove(oldpath, newpath):
         p.start()
         moveDialog(oldpath)
 
+def getDirSizeFromList(pathlist):
+    size = 0
+    for each in pathlist:
+        size += getDirSize(each)
+    return size
+
+def rmDialog(pathlist):
+    allsize = getDirSizeFromList(pathlist)
+    #文件大于50M则显示dialog进度条
+    if allsize > 52428800 :
+        msg = 'Loading...\n文件删除中，请稍等...'
+        dialog = wx.ProgressDialog("文件转移", msg,100,style=wx.PD_APP_MODAL | wx.PD_ELAPSED_TIME | wx.PD_REMAINING_TIME)
+        alive = True
+        percent = 0
+        while alive and percent < 100:
+            leftsize = getDirSizeFromList(pathlist)
+            percent = 100 - ((allsize-leftsize)/allsize)*100
+            if percent == 100:
+                msg = 'Mods转移完成！'
+            #wx.Sleep(0.3)
+            alive = dialog.Update(percent, newmsg=msg)
+        dialog.Destroy()
+
+def threadRMtree(pathlist):
+    for each in pathlist:
+        try:
+            p = multiprocessing.Process(target=shutil.rmtree, args=(each,))
+            p.start()
+        except FileNotFoundError:
+            pass
+    rmDialog(pathlist)
+    return p
             
 
 if __name__ == '__main__':
-    m1 = r'E:\Work\python-learn\project\ksp_mods_manager\prj\KSPMods\mod0'
+    m1 = r'E:\Work\python-learn\project\ksp_mods_manager\prj\KSPMods\modz'
     m2 = r'E:\Work\python-learn\project\ksp_mods_manager\prj\test'
-    print(IsFileinFolder(m2))
+    print(getDirSize(m1))
     
