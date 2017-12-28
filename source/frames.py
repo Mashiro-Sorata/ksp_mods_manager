@@ -4,6 +4,7 @@
 #若第一次运行程序，自动检测ksp安装路径，如若没有找到，则用户手动选择路径
 #第一次提示用户设定“管理文件夹”，默认为程序所在路径下的MODS文件夹
 
+import win32api
 from moveFile import *
 from json_builder import *
 from files_operation import *
@@ -102,7 +103,6 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnImport, importItem)
 
     def OnControl_Rmove(self, e):
-        print('>>')
         idlist = self.mods_Unins.getIdList()
         if idlist:
             datas = loadJson(self.datapath)
@@ -112,17 +112,35 @@ class MainFrame(wx.Frame):
                 modname = self.mods_Unins.list.GetItemText(each, 0)
                 insdata[modname] = [None, self.mods_Unins.list.GetItemText(each, 2)]    #path刷新时会自动重新生成
                 namelist.append(modname)
-            p = threadMove(datas['Uninstalled Path'], datas['Installed Path'], namelist)
+            threadMove(datas['Uninstalled Path'], datas['Installed Path'], namelist)
             saveJson(os.path.join(datas['Installed Path'], r'modData.json'), insdata)
-            
             self.InitData()
         
 
     def OnControl_Lmove(self, e):
-        pass
+        idlist = self.mods_Ins.getIdList()
+        if idlist:
+            datas = loadJson(self.datapath)
+            uninsdata = loadJson(os.path.join(datas['Uninstalled Path'], r'modData.json'))
+            namelist = []
+            for each in idlist:
+                modname = self.mods_Ins.list.GetItemText(each, 0)
+                uninsdata[modname] = [None, self.mods_Ins.list.GetItemText(each, 2)]
+                namelist.append(modname)
+            threadMove(datas['Installed Path'], datas['Uninstalled Path'], namelist)
+            saveJson(os.path.join(datas['Uninstalled Path'], r'modData.json'), uninsdata)
+            self.InitData()
 
     def OnRunKSP(self, e):
-        pass
+        datas = loadJson(self.datapath)
+        tgt = os.path.join(os.path.split(datas['Installed Path'])[0], 'KSP.exe')
+        if os.path.exists(tgt):
+            win32api.ShellExecute(0, 'open', tgt, '','',1)
+        else:
+            msgdlg = wx.MessageDialog(None, u"请检查Mods安装路径是否正确！", u"错误提示", style = wx.OK | wx.ICON_HAND)
+            msgdlg.ShowModal()
+            msgdlg.Destroy()
+
 
     def OnExit(self, e):
         self.Destroy()
@@ -202,6 +220,11 @@ class ModsList:
             self.list.Bind(wx.EVT_MENU, self.OnSBT, self.sbtItem)
             self.sbmItem = self.menu.Append(-1, '按Mods排序', '将列表按照Mods重新排序')
             self.list.Bind(wx.EVT_MENU, self.OnSBM, self.sbmItem)
+
+        self.list.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
+
+    def OnKillFocus(self, e):
+        self.idlist = []
 
     def OnSBT(self, e):
         datas = loadJson(self.datapath) 
@@ -362,8 +385,9 @@ class ModsList:
                 msgdlg = wx.MessageDialog(None, u"Mod文件夹不能为空文件夹！", u"错误", style = wx.OK | wx.ICON_HAND)
                 msgdlg.ShowModal()
                 msgdlg.Destroy()
+            self.Refresh()
         dlg.Destroy()
-        self.Refresh()
+        
         
         
 
