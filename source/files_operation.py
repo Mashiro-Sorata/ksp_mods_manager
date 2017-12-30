@@ -166,6 +166,7 @@ def SFthreadMove(oldpath, newpath):
         p = multiprocessing.Process(target=moveFtoF, args=(oldpath, newpath))
         p.start()
         moveDialog(oldpath)
+    return p
 
 def getDirSizeFromList(pathlist):
     size = 0

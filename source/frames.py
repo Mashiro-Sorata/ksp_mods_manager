@@ -1,13 +1,12 @@
 # init_config.py
 # -*- coding: utf-8 -*-
 
-#若第一次运行程序，自动检测ksp安装路径，如若没有找到，则用户手动选择路径
-#第一次提示用户设定“管理文件夹”，默认为程序所在路径下的MODS文件夹
-
 import win32api
 from moveFile import *
 from json_builder import *
 from files_operation import *
+import wx.adv
+from wx.lib.wordwrap import wordwrap
 
 class MainFrame(wx.Frame):
     """
@@ -38,20 +37,20 @@ class MainFrame(wx.Frame):
         self.mods_Unins.Refresh()
 
     def InitUI(self):
-        pnl = wx.Panel(self)
+        self.panel = wx.Panel(self)
         abox = wx.BoxSizer(wx.HORIZONTAL)
         Bwidth = 60
-        self.mods_Ins = ModsList(pnl, UNINS=False)
-        self.mods_Unins = ModsList(pnl,w1=140,w2=150,w3=140)
+        self.mods_Ins = ModsList(self.panel, UNINS=False)
+        self.mods_Unins = ModsList(self.panel,w1=140,w2=150,w3=140)
         
-        self.btnAdd = wx.Button(pnl,label = '>>',size=(Bwidth,30))
-        self.btnRmv = wx.Button(pnl,label = '<<',size=(Bwidth,30))
-        self.btnRefresh = wx.Button(pnl,label = 'refresh',size=(Bwidth,30))
-        self.btnRun = wx.Button(pnl,label = 'run ksp', size=(Bwidth,30))
+        self.btnAdd = wx.Button(self.panel,label = '>>',size=(Bwidth,30))
+        self.btnRmv = wx.Button(self.panel,label = '<<',size=(Bwidth,30))
+        self.btnRefresh = wx.Button(self.panel,label = 'refresh',size=(Bwidth,30))
+        self.btnRun = wx.Button(self.panel,label = 'run ksp', size=(Bwidth,30))
 
-        ins_frm = wx.StaticBox(pnl, -1, 'Installed Mods:')
-        unins_frm = wx.StaticBox(pnl, -1, 'Uninstalled Mods:')
-        btn_frm = wx.StaticBox(pnl, -1, 'Control:')
+        ins_frm = wx.StaticBox(self.panel, -1, 'Installed Mods:')
+        unins_frm = wx.StaticBox(self.panel, -1, 'Uninstalled Mods:')
+        btn_frm = wx.StaticBox(self.panel, -1, 'Control:')
         
         insSizer = wx.StaticBoxSizer(ins_frm, wx.HORIZONTAL)
         insbox = wx.BoxSizer(wx.HORIZONTAL)
@@ -75,7 +74,7 @@ class MainFrame(wx.Frame):
         abox.Add(btnSizer, 0, wx.ALL|wx.CENTER, 1)
         abox.Add(insSizer, 0, wx.ALL|wx.CENTER, 1)
         
-        pnl.SetSizer(abox)
+        self.panel.SetSizer(abox)
 
         self.makeMenuBar()
         
@@ -101,6 +100,19 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnCfg, cfgItem)
         self.Bind(wx.EVT_MENU, self.OnExit, exitItem)
         self.Bind(wx.EVT_MENU, self.OnImport, importItem)
+        self.Bind(wx.EVT_MENU, self.OnAbout, aboutItem)
+
+    def OnAbout(self, e):
+        info = wx.adv.AboutDialogInfo()
+        info.SetName("About")
+        info.SetVersion("V1.0")
+        info.SetCopyright("      Copyright (c) 2017 Mashiro-Sorata      ")
+        info.Description = wordwrap("      A tool to manager your KSP mods      ",350, wx.ClientDC(self.panel))
+        info.SetWebSite("https://github.com/Mashiro-Sorata/ksp_mods_manager", "Github")
+        info.Developers = ["Mashiro_Sorata"]
+        info.License = wordwrap("MIT License", 500, wx.ClientDC(self.panel))
+        wx.adv.AboutBox(info)
+
 
     def OnControl_Rmove(self, e):
         idlist = self.mods_Unins.getIdList()
@@ -112,7 +124,9 @@ class MainFrame(wx.Frame):
                 modname = self.mods_Unins.list.GetItemText(each, 0)
                 insdata[modname] = [None, self.mods_Unins.list.GetItemText(each, 2)]    #path刷新时会自动重新生成
                 namelist.append(modname)
-            threadMove(datas['Uninstalled Path'], datas['Installed Path'], namelist)
+            p = threadMove(datas['Uninstalled Path'], datas['Installed Path'], namelist)
+            while p.is_alive():
+                pass
             saveJson(os.path.join(datas['Installed Path'], r'modData.json'), insdata)
             self.InitData()
         
@@ -127,7 +141,9 @@ class MainFrame(wx.Frame):
                 modname = self.mods_Ins.list.GetItemText(each, 0)
                 uninsdata[modname] = [None, self.mods_Ins.list.GetItemText(each, 2)]
                 namelist.append(modname)
-            threadMove(datas['Installed Path'], datas['Uninstalled Path'], namelist)
+            p = threadMove(datas['Installed Path'], datas['Uninstalled Path'], namelist)
+            while p.is_alive():
+                pass
             saveJson(os.path.join(datas['Uninstalled Path'], r'modData.json'), uninsdata)
             self.InitData()
 
@@ -378,9 +394,11 @@ class ModsList:
             #将此文件夹转移到mods管理目录下
             tgtpath = dlg.GetPath()
             if IsFileinFolder(tgtpath):
-                SFthreadMove(tgtpath, data['Uninstalled Path'])
+                p = SFthreadMove(tgtpath, data['Uninstalled Path'])
                 data['OldImportPath'] = os.path.split(tgtpath)[0]
                 saveJson(self.datapath, data)
+                while p.is_alive():
+                    pass
             else:
                 msgdlg = wx.MessageDialog(None, u"Mod文件夹不能为空文件夹！", u"错误", style = wx.OK | wx.ICON_HAND)
                 msgdlg.ShowModal()
@@ -443,6 +461,18 @@ class CfgFrame(wx.Frame):
 
         self.Bind(wx.EVT_BUTTON, self.Save, saveBtn)
         self.Bind(wx.EVT_BUTTON, self.Cancel, cancelBtn)
+        self.Bind(wx.EVT_CLOSE, self.Close)
+
+    def Close(self, e):
+        if self.isCfgchange():
+            dlg = wx.MessageDialog(None, u"是否保存此设置？", u"提示", style = wx.YES_NO | wx.YES_DEFAULT | wx.ICON_EXCLAMATION)
+            if dlg.ShowModal() == wx.ID_YES:
+                self.Save(e)
+            else:
+                self.Cancel(e)
+        else:
+            self.Cancel(e)
+                
 
     def OpenFolder(self, e, i):
         if i == self.InspBtn.GetId():
@@ -502,7 +532,7 @@ class CfgFrame(wx.Frame):
         self.pdata = loadJson(self.datapath)
         if self.pdata:
             if newpath != self.pdata['Uninstalled Path']:
-                threadMove(self.pdata['Uninstalled Path'], newpath)
-
-        
+                p = threadMove(self.pdata['Uninstalled Path'], newpath)
+                while p.is_alive():
+                    pass
 
