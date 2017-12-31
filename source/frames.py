@@ -240,7 +240,7 @@ class ModsList:
         self.list.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
 
     def OnKillFocus(self, e):
-        self.idlist = []
+        pass
 
     def OnSBT(self, e):
         datas = loadJson(self.datapath) 
@@ -334,7 +334,6 @@ class ModsList:
             self.folderItem.Enable(False)
             self.removeItem.Enable(False)
         self.idlist = self.getIdList()
-            
         self.list.PopupMenu(self.menu)
 
     def OnImport(self, e):
@@ -378,9 +377,7 @@ class ModsList:
             pathlist = []
             for each in self.idlist:
                 pathlist.append(self.list.GetItemText(each, 1))
-            p = threadRMtree(pathlist)
-            while p.is_alive():
-                pass
+            passWhenAllDone(threadRMtree(pathlist))
             self.Refresh()
             
 
@@ -501,6 +498,9 @@ class CfgFrame(wx.Frame):
             frm.Show()
     
     def Save(self, e):
+        _path = os.path.join(os.getcwd(), r'data')
+        if not os.path.exists(_path):
+            os.mkdir(_path)
         data = {}
         _path = self.InspText.GetValue()
         if _path:

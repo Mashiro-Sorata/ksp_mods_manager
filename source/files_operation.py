@@ -59,7 +59,6 @@ def listFilesBySorD(oldpath, newpath, filenamelist=None):
 
 #转移某个文件夹下所有文件(包括文件夹)
 def moveFinF(oldpath, newpath, oldfilelist=None, samefile=None, override=False):
-    print('move')
     if samefile and override:
         rmtreeByNamelist(newpath, samefile)
     elif not samefile and override:
@@ -77,7 +76,6 @@ def moveFinF(oldpath, newpath, oldfilelist=None, samefile=None, override=False):
 
 #删除给出路径下在nlist列表中的文件
 def rmtreeByNamelist(rootpath, nlist):
-    print('rm')
     for each in nlist:
         eachpath = os.path.join(rootpath, each)
         if os.path.isfile(eachpath):
@@ -125,7 +123,7 @@ def moveDialog(oldpath, dlist=None):
 #获得路径下列表中的所有(或指定)文件目录的大小
 def getDirSize(dirpath, nlist=None):
     size = 0
-    if not nlist:
+    if nlist == None:
         for (root,dirs,files) in os.walk(dirpath):
             for name in files:
                 try:
@@ -192,20 +190,25 @@ def rmDialog(pathlist):
         dialog.Destroy()
 
 def threadRMtree(pathlist):
+    p = []
+    newpathlist = []
     for each in pathlist:
         try:
-            p = multiprocessing.Process(target=shutil.rmtree, args=(each,))
-            p.start()
+            p.append(multiprocessing.Process(target=shutil.rmtree, args=(each,)))
+            p[-1].start()
+            newpathlist.append(each)
         except FileNotFoundError:
             pass
-    rmDialog(pathlist)
+    rmDialog(newpathlist)
     return p
-            
 
-if __name__ == '__main__':
-    #app = wx.App()
-    #app.MainLoop()
-    m1 = r'E:\Work\python-learn\project\ksp_mods_manager\prj\KSPMods'
-    m2 = r'E:\Work\python-learn\project\ksp_mods_manager\prj\test'
-    moveFinF(m1,m2,['m2','mod1'])
+def passWhenAllDone(plist):
+    while True:
+        i =  0
+        for each in plist:
+            if not each.is_alive():
+                i += 1
+        if i == len(plist):
+            return True
+
     

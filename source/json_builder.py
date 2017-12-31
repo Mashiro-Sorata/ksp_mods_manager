@@ -13,7 +13,3 @@ def loadJson(path):
     except FileNotFoundError:
         return dict()
 
-if __name__ == '__main__':
-    data = loadJson('paths.json')
-    print(data)
-
