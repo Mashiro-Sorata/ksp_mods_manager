@@ -3,9 +3,9 @@
 
 import shutil
 import os
-import multiprocessing
-import time
+import threading
 import wx
+import time
 
 #列举所给路径下所有的非空文件夹,参数files=True则包括根目录下的文件
 def enumFolder(dirpath, files=True):
@@ -90,15 +90,15 @@ def threadMove(oldpath, newpath, filenamelist=None):
     if samefiles:
         dlg = wx.MessageDialog(None, u"检测到有相同文件，是否覆盖？", u"警告", style = wx.YES_NO | wx.YES_DEFAULT | wx.ICON_EXCLAMATION)
         if dlg.ShowModal() == wx.ID_YES:
-            p = multiprocessing.Process(target=moveFinF, args=(oldpath, newpath, filenamelist, samefiles, True))
+            p = threading.Thread(target=moveFinF, args=(oldpath, newpath, filenamelist, samefiles, True))
             p.start()
             moveDialog(oldpath, dlist=filenamelist)
         else:
-            p = multiprocessing.Process(target=moveFinF, args=(oldpath, newpath, difffiles))
+            p = threading.Thread(target=moveFinF, args=(oldpath, newpath, difffiles))
             p.start()
             moveDialog(oldpath, dlist=difffiles)
     else:
-        p = multiprocessing.Process(target=moveFinF, args=(oldpath, newpath, filenamelist))
+        p = threading.Thread(target=moveFinF, args=(oldpath, newpath, filenamelist))
         p.start()
         moveDialog(oldpath, dlist=filenamelist)
     return p
@@ -153,15 +153,15 @@ def SFthreadMove(oldpath, newpath):
         #重名提示是否覆盖
         dlg = wx.MessageDialog(None, u"检测到有相同文件，是否覆盖？", u"警告", style = wx.YES_NO | wx.YES_DEFAULT | wx.ICON_EXCLAMATION)
         if dlg.ShowModal() == wx.ID_YES:
-            p = multiprocessing.Process(target=moveFtoF, args=(oldpath, newpath, True))
+            p = threading.Thread(target=moveFtoF, args=(oldpath, newpath, True))
             p.start()
             moveDialog(oldpath)
     elif modname in newalist:
-        p = multiprocessing.Process(target=moveFtoF, args=(oldpath, newpath, True))
+        p = threading.Thread(target=moveFtoF, args=(oldpath, newpath, True))
         p.start()
         moveDialog(oldpath)
     else:
-        p = multiprocessing.Process(target=moveFtoF, args=(oldpath, newpath))
+        p = threading.Thread(target=moveFtoF, args=(oldpath, newpath))
         p.start()
         moveDialog(oldpath)
     return p
@@ -185,7 +185,6 @@ def rmDialog(pathlist):
             percent = 100 - ((allsize-leftsize)/allsize)*100
             if percent == 100:
                 msg = 'Mods删除完成！'
-            #wx.Sleep(0.3)
             alive = dialog.Update(percent, newmsg=msg)
         dialog.Destroy()
 
@@ -194,7 +193,7 @@ def threadRMtree(pathlist):
     newpathlist = []
     for each in pathlist:
         try:
-            p.append(multiprocessing.Process(target=shutil.rmtree, args=(each,)))
+            p.append(threading.Thread(target=shutil.rmtree, args=(each,)))
             p[-1].start()
             newpathlist.append(each)
         except FileNotFoundError:
@@ -211,4 +210,15 @@ def passWhenAllDone(plist):
         if i == len(plist):
             return True
 
-    
+
+"""
+def debug_log(name, data):
+    if not os.path.exists(r'Debug'):
+        os.mkdir(r'Debug')
+    filename = os.path.join(os.getcwd()+r'\Debug', name + time.strftime(" %Y-%m-%d#%H-%M-%S", time.localtime()) + ' LOG.txt')
+    with open(filename, 'w') as f:
+        f.write(str(data))
+"""
+
+if __name__ == '__main__':
+    debug_log('test',[1,2,3])

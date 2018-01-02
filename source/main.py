@@ -17,7 +17,11 @@ if __name__ == '__main__':
 
     if not os.path.isfile(os.path.join(os.getcwd(),r'data\mainData.json')):
         #初始化设定(Default)
-        inspath = os.path.join(autoSearchPath(),'GameData')
+        ksppath = autoSearchPath()
+        if ksppath:
+            inspath = os.path.join(ksppath, 'GameData')
+        else:
+            inspath = None
         frm1 = CfgFrame(None, title='Settings',size=(600,300),style=wx.MINIMIZE_BOX | wx.SYSTEM_MENU | wx.CAPTION | wx.CLOSE_BOX | wx.CLIP_CHILDREN)
         if inspath:
             frm1.InspText.SetValue(inspath)

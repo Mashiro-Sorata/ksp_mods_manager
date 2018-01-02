@@ -174,6 +174,7 @@ class MainFrame(wx.Frame):
 
     def OnImport(self, e):
         self.mods_Unins.ImportMod()
+        self.InitData()
 
     def OnRefresh(self, e):
         self.InitData()
@@ -384,9 +385,9 @@ class ModsList:
     def ImportMod(self):
         data = loadJson(self.datapath)
         if data.get('OldImportPath'):
-            dlg = wx.DirDialog(self.parent, r'选择目标文件夹', data['OldImportPath'], style=wx.DD_DEFAULT_STYLE)
+            dlg = wx.DirDialog(None, r'选择目标文件夹', data['OldImportPath'], style=wx.DD_DEFAULT_STYLE)
         else:
-            dlg = wx.DirDialog(self.parent, r'选择目标文件夹', os.getcwd(), style=wx.DD_DEFAULT_STYLE)
+            dlg = wx.DirDialog(None, r'选择目标文件夹', os.getcwd(), style=wx.DD_DEFAULT_STYLE)
         if dlg.ShowModal() == wx.ID_OK:
             #将此文件夹转移到mods管理目录下
             tgtpath = dlg.GetPath()
@@ -475,17 +476,17 @@ class CfgFrame(wx.Frame):
         if i == self.InspBtn.GetId():
             tpath = self.InspText.GetValue()
             if tpath:
-                dlg = wx.DirDialog(self, r'选择目标文件夹', tpath, style=wx.DD_DEFAULT_STYLE)
+                dlg = wx.DirDialog(None, r'选择目标文件夹', tpath, style=wx.DD_DEFAULT_STYLE)
             else:
-                dlg = wx.DirDialog(self, r'选择目标文件夹', os.getcwd(), style=wx.DD_DEFAULT_STYLE)
+                dlg = wx.DirDialog(None, r'选择目标文件夹', os.getcwd(), style=wx.DD_DEFAULT_STYLE)
             if dlg.ShowModal() == wx.ID_OK:
                 self.InspText.SetValue(dlg.GetPath())
         else:
             tpath = self.ModText.GetValue()
             if tpath:
-                dlg = wx.DirDialog(self, r'选择目标文件夹', tpath, style=wx.DD_DEFAULT_STYLE)
+                dlg = wx.DirDialog(None, r'选择目标文件夹', tpath, style=wx.DD_DEFAULT_STYLE)
             else:
-                dlg = wx.DirDialog(self, r'选择目标文件夹', os.getcwd(), style=wx.DD_DEFAULT_STYLE)
+                dlg = wx.DirDialog(None, r'选择目标文件夹', os.getcwd(), style=wx.DD_DEFAULT_STYLE)
             if dlg.ShowModal() == wx.ID_OK:
                 self.ModText.SetValue(dlg.GetPath())
         dlg.Destroy()
