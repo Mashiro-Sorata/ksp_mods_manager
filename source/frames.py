@@ -7,6 +7,7 @@ from json_builder import *
 from files_operation import *
 import wx.adv
 from wx.lib.wordwrap import wordwrap
+import base64
 
 class MainFrame(wx.Frame):
     """
@@ -30,7 +31,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_BUTTON, self.OnControl_Lmove, self.btnRmv)
         self.Bind(wx.EVT_BUTTON, self.OnRunKSP, self.btnRun)
 
-
+        Icon(self).setIcon()
     
     def InitData(self):
         self.mods_Ins.Refresh()
@@ -326,13 +327,11 @@ class ModsList:
     
     def OnRclickMenu(self, event):
         self.tagsItem.Enable(True)
-        self.folderItem.Enable(True)
         self.removeItem.Enable(True)    
         
         itemid = self.list.GetFirstSelected()
         if itemid == -1:
             self.tagsItem.Enable(False)
-            self.folderItem.Enable(False)
             self.removeItem.Enable(False)
         self.idlist = self.getIdList()
         self.list.PopupMenu(self.menu)
@@ -357,6 +356,15 @@ class ModsList:
     
     def OnTags(self, e):
         dlg = wx.TextEntryDialog(None, '输入新的Tags', 'Tags Entry')
+        tag = []
+        allsame = True
+        for each in self.idlist:
+            tag.append(self.list.GetItemText(each, 2))
+            if len(tag) > 1 and tag[-1] != tag[-2]:
+                allsame = False
+                break
+        if allsame and tag[0] != 'Undefined':
+            dlg.SetValue(tag[0])
         if dlg.ShowModal() == wx.ID_OK:
             keylist = []
             for each in self.idlist:
@@ -366,7 +374,12 @@ class ModsList:
 
     def OnFolder(self, e):
         itemid = self.list.GetFirstSelected()
-        path = self.list.GetItemText(itemid, 1)
+        if itemid != -1:
+            path = self.list.GetItemText(itemid, 1)
+        elif self.UNINS:
+            path = loadJson(self.datapath).get('Uninstalled Path')
+        else:
+            path = loadJson(self.datapath).get('Installed Path')
         try:
             os.startfile(path)
         except FileNotFoundError:
@@ -461,6 +474,8 @@ class CfgFrame(wx.Frame):
         self.Bind(wx.EVT_BUTTON, self.Cancel, cancelBtn)
         self.Bind(wx.EVT_CLOSE, self.Close)
 
+        Icon(self).setIcon()
+
     def Close(self, e):
         if self.isCfgchange():
             dlg = wx.MessageDialog(None, u"是否保存此设置？", u"提示", style = wx.YES_NO | wx.YES_DEFAULT | wx.ICON_EXCLAMATION)
@@ -536,4 +551,22 @@ class CfgFrame(wx.Frame):
                 p = threadMove(self.pdata['Uninstalled Path'], newpath)
                 while p.is_alive():
                     pass
+#icon
+class Icon:
+    filepath = os.path.join(os.getcwd(), r'data\rocket.png')
+    iconB64 = b'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'
 
+    def __init__(self, parent):
+        self.creatIconFile()
+        self.parent = parent
+
+    def creatIconFile(self):
+        icon = base64.b64decode(Icon.iconB64)
+        if not os.path.exists(Icon.filepath):
+            with open(Icon.filepath, 'wb') as f:
+                f.write(icon)
+
+    def setIcon(self):
+        icon = wx.Icon()
+        icon.CopyFromBitmap(wx.Bitmap(wx.Image(Icon.filepath), wx.BITMAP_TYPE_PNG))
+        self.parent.SetIcon(icon)
