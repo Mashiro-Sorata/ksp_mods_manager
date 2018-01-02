@@ -1,7 +1,7 @@
 import json
 
 def saveJson(path, data):
-    js = json.dumps(data, sort_keys=True,indent=4)
+    js = json.dumps(data, sort_keys=True, indent=4, ensure_ascii=False)
     with open(path,'w') as f:
         f.write(js)
 

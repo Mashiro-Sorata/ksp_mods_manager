@@ -116,7 +116,6 @@ def moveDialog(oldpath, dlist=None):
             percent = ((allsize-leftsize)/allsize)*100
             if percent == 100:
                 msg = 'Mods转移完成！'
-            #wx.Sleep(0.3)
             alive = dialog.Update(percent, newmsg=msg)
         dialog.Destroy()
 
@@ -221,4 +220,5 @@ def debug_log(name, data):
 """
 
 if __name__ == '__main__':
-    debug_log('test',[1,2,3])
+    #debug_log('test',[1,2,3])
+    print(getDirSize(r'E:\Work\python-learn\project\ksp_mods_manager\prj\KSPMods' ,['BoulderCo']))
