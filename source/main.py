@@ -15,6 +15,9 @@ from frames import *
 if __name__ == '__main__':
     app = wx.App()
 
+    if not os.path.exists(os.path.join(os.getcwd(),r'data')):
+        os.mkdir(os.path.join(os.getcwd(),r'data'))
+    
     if not os.path.isfile(os.path.join(os.getcwd(),r'data\mainData.json')):
         #初始化设定(Default)
         ksppath = autoSearchPath()
